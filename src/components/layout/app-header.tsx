@@ -73,8 +73,8 @@ export function AppHeader({ user, profile }: AppHeaderProps) {
               <UserIcon className="mr-2 h-4 w-4" />Meu perfil
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
-              <LogOut className="mr-2 h-4 w-4" />Sair
+            <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive cursor-pointer">
+              <LogOut className="mr-2 h-4 w-4" />Sair da conta
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

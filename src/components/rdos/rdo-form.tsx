@@ -21,6 +21,8 @@ import { SecaoObservacoes } from './secoes/secao-observacoes'
 type Obra = { id: string; nome: string; codigo: string; latitude: number | null; longitude: number | null }
 type Recurso = Database['public']['Tables']['recursos']['Row'] & {
   grupos_recursos: { nome: string } | null
+  terceiro: boolean
+  empresa: string | null
 }
 
 export type ItemEfetivo = { recurso_id: string; quantidade: number; horas_trabalhadas: number | null; observacao: string }
@@ -66,6 +68,36 @@ export function RdoForm({ obras, recursos, obraIdInicial }: RdoFormProps) {
   const [loadingClima, setLoadingClima] = useState(false)
 
   const obraSelecionada = obras.find(o => o.id === obraId)
+
+  async function copiarDiaAnterior(obraIdParam: string, dataParam: string) {
+    const dataAnterior = new Date(dataParam)
+    dataAnterior.setDate(dataAnterior.getDate() - 1)
+    const dataAnteriorStr = dataAnterior.toISOString().split('T')[0]
+
+    const { data: rdoAnterior } = await supabase
+      .from('rdos')
+      .select('id')
+      .eq('obra_id', obraIdParam)
+      .eq('data', dataAnteriorStr)
+      .single()
+
+    if (!rdoAnterior) return
+
+    const [{ data: efe }, { data: maq }] = await Promise.all([
+      supabase.from('rdo_efetivo').select('recurso_id, quantidade, horas_trabalhadas').eq('rdo_id', rdoAnterior.id),
+      supabase.from('rdo_maquinario').select('recurso_id, quantidade, horas_utilizadas').eq('rdo_id', rdoAnterior.id),
+    ])
+
+    if ((efe && efe.length > 0) || (maq && maq.length > 0)) {
+      if (efe && efe.length > 0) {
+        setEfetivo(efe.map(e => ({ recurso_id: e.recurso_id, quantidade: e.quantidade, horas_trabalhadas: e.horas_trabalhadas, observacao: '' })))
+      }
+      if (maq && maq.length > 0) {
+        setMaquinario(maq.map(m => ({ recurso_id: m.recurso_id, quantidade: m.quantidade, horas_utilizadas: m.horas_utilizadas, observacao: '' })))
+      }
+      toast.success('Efetivo e maquinário copiados do dia anterior!')
+    }
+  }
 
   const handleBuscarClima = useCallback(async (dataParam?: string) => {
     if (!obraSelecionada?.latitude || !obraSelecionada?.longitude) {
@@ -224,8 +256,8 @@ export function RdoForm({ obras, recursos, obraIdInicial }: RdoFormProps) {
         obras={obras}
         obraId={obraId}
         data={data}
-        onObraChange={setObraId}
-        onDataChange={d => { setData(d); if (obraSelecionada?.latitude) handleBuscarClima(d) }}
+        onObraChange={id => { setObraId(id); if (id && data) copiarDiaAnterior(id, data) }}
+        onDataChange={d => { setData(d); if (obraSelecionada?.latitude) handleBuscarClima(d); if (obraId) copiarDiaAnterior(obraId, d) }}
       />
 
       {/* 2. Clima */}

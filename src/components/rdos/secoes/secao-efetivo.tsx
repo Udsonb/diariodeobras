@@ -6,11 +6,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
+import { Badge } from '@/components/ui/badge'
 import { Users, Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react'
-import type { Database } from '@/lib/supabase/types'
 import type { ItemEfetivo } from '../rdo-form'
 
-type Recurso = Database['public']['Tables']['recursos']['Row'] & {
+type Recurso = {
+  id: string; nome: string; tipo: string; ativo: boolean
+  terceiro: boolean; empresa: string | null
   grupos_recursos: { nome: string } | null
 }
 
@@ -23,37 +25,24 @@ interface Props {
 export function SecaoEfetivo({ recursos, itens, onChange }: Props) {
   const [busca, setBusca] = useState('')
   const [showBusca, setShowBusca] = useState(false)
+  const [filtroVinculo, setFiltroVinculo] = useState<'todos' | 'proprio' | 'terceiro'>('todos')
 
-  const grupos = Array.from(
-    new Set(recursos.map(r => r.grupos_recursos?.nome ?? 'Sem grupo'))
-  )
+  const recursosFiltrados = recursos
+    .filter(r => r.ativo)
+    .filter(r => filtroVinculo === 'todos' || (filtroVinculo === 'proprio' ? !r.terceiro : r.terceiro))
+    .filter(r => r.nome.toLowerCase().includes(busca.toLowerCase()) || (r.empresa ?? '').toLowerCase().includes(busca.toLowerCase()))
 
-  const recursosFiltrados = recursos.filter(r =>
-    r.nome.toLowerCase().includes(busca.toLowerCase()) ||
-    (r.cargo ?? '').toLowerCase().includes(busca.toLowerCase())
-  )
+  const propriosList = recursosFiltrados.filter(r => !r.terceiro)
+  const terceirosList = recursosFiltrados.filter(r => r.terceiro)
 
   function adicionar(recurso: Recurso) {
-    if (itens.some(i => i.recurso_id === recurso.id)) {
-      return // já está na lista
-    }
-    onChange([...itens, {
-      recurso_id: recurso.id,
-      quantidade: 1,
-      horas_trabalhadas: 8,
-      observacao: '',
-    }])
+    if (itens.some(i => i.recurso_id === recurso.id)) return
+    onChange([...itens, { recurso_id: recurso.id, quantidade: 1, horas_trabalhadas: 8, observacao: '' }])
   }
 
-  function adicionarGrupo(nomeGrupo: string) {
-    const grupo = recursos.filter(r => (r.grupos_recursos?.nome ?? 'Sem grupo') === nomeGrupo)
-    const novos = grupo.filter(r => !itens.some(i => i.recurso_id === r.id))
-    onChange([...itens, ...novos.map(r => ({
-      recurso_id: r.id,
-      quantidade: 1,
-      horas_trabalhadas: 8,
-      observacao: '',
-    }))])
+  function adicionarGrupo(lista: Recurso[]) {
+    const novos = lista.filter(r => !itens.some(i => i.recurso_id === r.id))
+    onChange([...itens, ...novos.map(r => ({ recurso_id: r.id, quantidade: 1, horas_trabalhadas: 8, observacao: '' }))])
   }
 
   function remover(idx: number) {
@@ -65,8 +54,35 @@ export function SecaoEfetivo({ recursos, itens, onChange }: Props) {
   }
 
   const totalEfetivo = itens.reduce((acc, i) => acc + i.quantidade, 0)
+  const recurso = (id: string) => recursos.find(r => r.id === id)
 
-  const nomeRecurso = (id: string) => recursos.find(r => r.id === id)?.nome ?? 'Desconhecido'
+  function renderLista(lista: Recurso[], titulo?: string) {
+    if (lista.length === 0) return null
+    return (
+      <div className="space-y-1">
+        {titulo && <p className="text-xs font-medium text-muted-foreground px-1">{titulo}</p>}
+        {lista.map(r => {
+          const jaAdicionado = itens.some(i => i.recurso_id === r.id)
+          return (
+            <button
+              key={r.id} type="button" onClick={() => adicionar(r)} disabled={jaAdicionado}
+              className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors flex items-center justify-between gap-2 ${
+                jaAdicionado ? 'text-muted-foreground cursor-default opacity-50' : 'hover:bg-primary/10 hover:text-primary cursor-pointer'
+              }`}
+            >
+              <span>{r.nome}</span>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                {r.empresa && <span className="text-xs text-muted-foreground">{r.empresa}</span>}
+                <Badge variant="outline" className={`text-xs ${r.terceiro ? 'border-amber-400 text-amber-600' : 'border-green-400 text-green-600'}`}>
+                  {r.terceiro ? 'Terceiro' : 'Próprio'}
+                </Badge>
+              </div>
+            </button>
+          )
+        })}
+      </div>
+    )
+  }
 
   return (
     <Card>
@@ -81,127 +97,123 @@ export function SecaoEfetivo({ recursos, itens, onChange }: Props) {
               </span>
             )}
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setShowBusca(v => !v)}
-          >
-            <Plus className="w-3.5 h-3.5 mr-1" />
-            Adicionar
+          <Button type="button" variant="outline" size="sm" onClick={() => setShowBusca(v => !v)}>
+            <Plus className="w-3.5 h-3.5 mr-1" />Adicionar
             {showBusca ? <ChevronUp className="w-3 h-3 ml-1" /> : <ChevronDown className="w-3 h-3 ml-1" />}
           </Button>
         </div>
         <Separator />
 
-        {/* Painel de seleção */}
         {showBusca && (
           <div className="border border-border rounded-lg p-3 bg-muted/30 space-y-3">
-            <Input
-              placeholder="Buscar por nome ou cargo..."
-              value={busca}
-              onChange={e => setBusca(e.target.value)}
-              className="h-8 text-sm"
-            />
+            {/* Filtros */}
+            <div className="flex gap-2">
+              <Input
+                placeholder="Buscar função..."
+                value={busca}
+                onChange={e => setBusca(e.target.value)}
+                className="h-8 text-sm flex-1"
+              />
+              <div className="flex gap-1">
+                {(['todos', 'proprio', 'terceiro'] as const).map(v => (
+                  <button
+                    key={v} type="button"
+                    onClick={() => setFiltroVinculo(v)}
+                    className={`text-xs px-2 py-1 rounded-md border transition-colors ${
+                      filtroVinculo === v ? 'bg-primary text-white border-primary' : 'bg-white text-muted-foreground border-border hover:border-primary'
+                    }`}
+                  >
+                    {v === 'todos' ? 'Todos' : v === 'proprio' ? 'Próprio' : 'Terceiro'}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-            {/* Botões de grupo */}
+            {/* Botões de grupo rápido */}
             {!busca && (
-              <div className="space-y-2">
-                <p className="text-xs text-muted-foreground font-medium">Adicionar por grupo:</p>
-                <div className="flex flex-wrap gap-2">
-                  {grupos.map(g => (
-                    <Button
-                      key={g}
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-7 text-xs"
-                      onClick={() => adicionarGrupo(g)}
-                    >
-                      + {g}
-                    </Button>
-                  ))}
-                </div>
+              <div className="flex flex-wrap gap-2">
+                {propriosList.length > 0 && (
+                  <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => adicionarGrupo(propriosList)}>
+                    + Todos próprios ({propriosList.length})
+                  </Button>
+                )}
+                {terceirosList.length > 0 && (
+                  <Button type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => adicionarGrupo(terceirosList)}>
+                    + Todos terceiros ({terceirosList.length})
+                  </Button>
+                )}
               </div>
             )}
 
-            {/* Lista de recursos */}
-            <div className="max-h-48 overflow-y-auto space-y-1">
+            <div className="max-h-52 overflow-y-auto space-y-2">
               {recursosFiltrados.length === 0 && (
                 <p className="text-xs text-muted-foreground text-center py-4">
-                  Nenhum efetivo encontrado. Cadastre em Efetivo &gt; Cadastros.
+                  Nenhuma função encontrada. Cadastre em Efetivo.
                 </p>
               )}
-              {recursosFiltrados.map(r => {
-                const jaAdicionado = itens.some(i => i.recurso_id === r.id)
-                return (
-                  <button
-                    key={r.id}
-                    type="button"
-                    onClick={() => adicionar(r)}
-                    disabled={jaAdicionado}
-                    className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors flex items-center justify-between ${
-                      jaAdicionado
-                        ? 'text-muted-foreground cursor-default'
-                        : 'hover:bg-primary/10 hover:text-primary cursor-pointer'
-                    }`}
-                  >
-                    <span>{r.nome}</span>
-                    <span className="text-xs text-muted-foreground">{r.cargo ?? r.grupos_recursos?.nome}</span>
-                  </button>
+              {busca
+                ? renderLista(recursosFiltrados)
+                : (
+                  <>
+                    {renderLista(propriosList, propriosList.length > 0 ? 'Próprio' : undefined)}
+                    {propriosList.length > 0 && terceirosList.length > 0 && <div className="border-t border-border my-1" />}
+                    {renderLista(terceirosList, terceirosList.length > 0 ? 'Terceiro' : undefined)}
+                  </>
                 )
-              })}
+              }
             </div>
           </div>
         )}
 
-        {/* Itens adicionados */}
         {itens.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">
-            Nenhum efetivo adicionado. Clique em "Adicionar" para selecionar.
+            Nenhuma função adicionada. Clique em "Adicionar".
           </p>
         ) : (
           <div className="space-y-2">
-            {itens.map((item, idx) => (
-              <div key={idx} className="grid grid-cols-12 gap-2 items-center border border-border rounded-lg px-3 py-2 bg-white">
-                <div className="col-span-5 text-sm font-medium text-foreground truncate">
-                  {nomeRecurso(item.recurso_id)}
+            {itens.map((item, idx) => {
+              const r = recurso(item.recurso_id)
+              return (
+                <div key={idx} className="grid grid-cols-12 gap-2 items-center border border-border rounded-lg px-3 py-2 bg-white">
+                  <div className="col-span-5">
+                    <p className="text-sm font-medium text-foreground">{r?.nome ?? '—'}</p>
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <Badge variant="outline" className={`text-xs ${r?.terceiro ? 'border-amber-400 text-amber-600' : 'border-green-400 text-green-600'}`}>
+                        {r?.terceiro ? 'Terceiro' : 'Próprio'}
+                      </Badge>
+                      {r?.empresa && <span className="text-xs text-muted-foreground truncate">{r.empresa}</span>}
+                    </div>
+                  </div>
+                  <div className="col-span-3">
+                    <Label className="text-xs text-muted-foreground">Quantidade</Label>
+                    <Input
+                      type="number" min={1}
+                      value={item.quantidade}
+                      onChange={e => atualizar(idx, 'quantidade', parseInt(e.target.value) || 1)}
+                      className="h-7 text-sm px-2"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <Label className="text-xs text-muted-foreground">Horas</Label>
+                    <Input
+                      type="number" min={0} max={24} step={0.5}
+                      value={item.horas_trabalhadas ?? ''}
+                      onChange={e => atualizar(idx, 'horas_trabalhadas', parseFloat(e.target.value) || 0)}
+                      className="h-7 text-sm px-2"
+                    />
+                  </div>
+                  <div className="col-span-2 flex justify-end">
+                    <Button
+                      type="button" variant="ghost" size="icon"
+                      className="h-7 w-7 text-destructive hover:text-destructive"
+                      onClick={() => remover(idx)}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
                 </div>
-                <div className="col-span-2">
-                  <Label className="text-xs text-muted-foreground">Qtd</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={item.quantidade}
-                    onChange={e => atualizar(idx, 'quantidade', parseInt(e.target.value) || 1)}
-                    className="h-7 text-sm px-2"
-                  />
-                </div>
-                <div className="col-span-3">
-                  <Label className="text-xs text-muted-foreground">Horas</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    max={24}
-                    step={0.5}
-                    value={item.horas_trabalhadas ?? ''}
-                    onChange={e => atualizar(idx, 'horas_trabalhadas', parseFloat(e.target.value) || 0)}
-                    className="h-7 text-sm px-2"
-                  />
-                </div>
-                <div className="col-span-2 flex justify-end">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-destructive hover:text-destructive"
-                    onClick={() => remover(idx)}
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </Button>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </CardContent>
