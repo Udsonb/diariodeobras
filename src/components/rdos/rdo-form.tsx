@@ -176,7 +176,7 @@ export function RdoForm({ obras, recursos, obraIdInicial }: RdoFormProps) {
       // 3. Maquinário
       if (maquinario.length > 0) {
         const { error } = await supabase.from('rdo_maquinario').insert(
-          maquinario.map((m, i) => ({ rdo_id: rdo.id, ...m, observacao: m.observacao || null, ordem: i }))
+          maquinario.map(m => ({ rdo_id: rdo.id, ...m, observacao: m.observacao || null }))
         )
         if (error) throw new Error('Erro ao salvar maquinário: ' + error.message)
       }
