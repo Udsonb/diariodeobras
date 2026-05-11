@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
-import { Plus, PowerOff, Power, Building2, User } from 'lucide-react'
+import { Plus, PowerOff, Power, Building2, User, Trash2 } from 'lucide-react'
 
 type Recurso = {
   id: string; nome: string; tipo: string; grupo_id: string | null
@@ -77,6 +77,14 @@ export function RecursoList({ recursos, tipo }: Props) {
 
   async function toggleAtivo(id: string, ativo: boolean) {
     await supabase.from('recursos').update({ ativo: !ativo } as any).eq('id', id)
+    router.refresh()
+  }
+
+  async function excluir(id: string, nome: string) {
+    if (!confirm(`Excluir "${nome}" permanentemente? Essa ação não pode ser desfeita.`)) return
+    const { error } = await supabase.from('recursos').delete().eq('id', id)
+    if (error) { toast.error('Erro ao excluir: ' + error.message); return }
+    toast.success('Excluído com sucesso!')
     router.refresh()
   }
 
@@ -215,6 +223,13 @@ export function RecursoList({ recursos, tipo }: Props) {
                   title={r.ativo ? 'Desativar' : 'Ativar'}
                 >
                   {r.ativo ? <PowerOff className="w-3.5 h-3.5" /> : <Power className="w-3.5 h-3.5" />}
+                </Button>
+                <Button
+                  variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"
+                  onClick={() => excluir(r.id, r.nome)}
+                  title="Excluir permanentemente"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
                 </Button>
               </div>
             ))}

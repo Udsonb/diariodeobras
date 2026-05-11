@@ -1,12 +1,11 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
-import { Camera, Upload, Trash2, X } from 'lucide-react'
-import Image from 'next/image'
+import { Camera, Upload, X, ImageIcon } from 'lucide-react'
 import type { FotoUpload } from '../rdo-form'
 
 interface Props {
@@ -18,6 +17,8 @@ const MAX_MB = 10
 
 export function SecaoFotos({ fotos, onChange }: Props) {
   const [dragging, setDragging] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const cameraRef = useRef<HTMLInputElement>(null)
 
   const processarArquivos = useCallback((files: FileList | File[]) => {
     const novos: FotoUpload[] = []
@@ -30,7 +31,7 @@ export function SecaoFotos({ fotos, onChange }: Props) {
       const preview = URL.createObjectURL(file)
       novos.push({ file, legenda: '', preview })
     })
-    onChange([...fotos, ...novos])
+    if (novos.length > 0) onChange([...fotos, ...novos])
   }, [fotos, onChange])
 
   function remover(idx: number) {
@@ -62,32 +63,48 @@ export function SecaoFotos({ fotos, onChange }: Props) {
         </div>
         <Separator />
 
-        {/* Zona de upload */}
+        {/* Inputs ocultos */}
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={e => { if (e.target.files) processarArquivos(e.target.files); e.target.value = '' }}
+        />
+        <input
+          ref={cameraRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={e => { if (e.target.files) processarArquivos(e.target.files); e.target.value = '' }}
+        />
+
+        {/* Zona de drop + botões */}
         <div
           onDragOver={e => { e.preventDefault(); setDragging(true) }}
           onDragLeave={() => setDragging(false)}
           onDrop={onDrop}
-          className={`relative border-2 border-dashed rounded-xl p-6 text-center transition-colors cursor-pointer ${
-            dragging ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50 hover:bg-muted/30'
+          className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors ${
+            dragging ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
           }`}
-          onClick={() => document.getElementById('foto-input')?.click()}
         >
-          <input
-            id="foto-input"
-            type="file"
-            accept="image/*"
-            multiple
-            capture="environment"
-            className="hidden"
-            onChange={e => e.target.files && processarArquivos(e.target.files)}
-          />
-          <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-          <p className="text-sm font-medium text-foreground">
-            Arraste fotos aqui ou clique para selecionar
+          <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
+          <p className="text-sm font-medium text-foreground mb-3">
+            Arraste fotos aqui ou use os botões abaixo
           </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Câmera ou galeria · Sem limite de quantidade · Máx. {MAX_MB}MB por foto
-          </p>
+          <div className="flex gap-2 justify-center flex-wrap">
+            <Button type="button" variant="outline" size="sm" onClick={() => inputRef.current?.click()}>
+              <ImageIcon className="w-3.5 h-3.5 mr-1.5" />
+              Escolher da galeria
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => cameraRef.current?.click()}>
+              <Camera className="w-3.5 h-3.5 mr-1.5" />
+              Câmera
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">Máx. {MAX_MB}MB por foto</p>
         </div>
 
         {/* Grade de fotos */}
@@ -96,11 +113,11 @@ export function SecaoFotos({ fotos, onChange }: Props) {
             {fotos.map((foto, idx) => (
               <div key={idx} className="group relative space-y-1.5">
                 <div className="relative aspect-square rounded-lg overflow-hidden border border-border bg-muted">
-                  <Image
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
                     src={foto.preview}
                     alt={foto.legenda || `Foto ${idx + 1}`}
-                    fill
-                    className="object-cover"
+                    className="w-full h-full object-cover"
                   />
                   <button
                     type="button"

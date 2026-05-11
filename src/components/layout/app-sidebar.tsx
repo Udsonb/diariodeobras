@@ -17,19 +17,18 @@ import {
   Building2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { ROLE_LABELS } from '@/lib/supabase/types'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
 
 const navItems = [
-  { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { href: '/obras', icon: HardHat, label: 'Obras' },
-  { href: '/rdos', icon: ClipboardList, label: 'Diários (RDO)' },
-  { href: '/efetivo', icon: Users, label: 'Efetivo' },
-  { href: '/maquinario', icon: Wrench, label: 'Maquinário' },
-  { href: '/configuracoes', icon: Settings, label: 'Configurações' },
+  { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', roles: null },
+  { href: '/obras', icon: HardHat, label: 'Obras', roles: null },
+  { href: '/rdos', icon: ClipboardList, label: 'Diários (RDO)', roles: null },
+  { href: '/efetivo', icon: Users, label: 'Efetivo', roles: ['admin', 'engenheiro', 'supervisor', 'tecnico'] },
+  { href: '/maquinario', icon: Wrench, label: 'Maquinário', roles: ['admin', 'engenheiro', 'supervisor', 'tecnico'] },
+  { href: '/configuracoes', icon: Settings, label: 'Configurações', roles: ['admin'] },
 ]
-
-const editRoles = ['admin', 'engenheiro', 'supervisor', 'tecnico']
 
 interface AppSidebarProps {
   user: User
@@ -40,13 +39,9 @@ export function AppSidebar({ profile }: AppSidebarProps) {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
 
-  const canEdit = profile && editRoles.includes(profile.role)
-
   const visibleItems = navItems.filter(item => {
-    if (['/efetivo', '/maquinario', '/configuracoes'].includes(item.href)) {
-      return canEdit || profile?.role === 'admin'
-    }
-    return true
+    if (!item.roles) return true
+    return profile?.role && item.roles.includes(profile.role)
   })
 
   return (
@@ -100,8 +95,8 @@ export function AppSidebar({ profile }: AppSidebarProps) {
           <p className="text-sidebar-foreground/80 text-xs font-medium truncate">
             {profile.full_name ?? 'Usuário'}
           </p>
-          <p className="text-sidebar-foreground/50 text-xs capitalize">
-            {profile.role?.replace('_', ' ')}
+          <p className="text-sidebar-foreground/50 text-xs">
+            {ROLE_LABELS[profile.role] ?? profile.role}
           </p>
         </div>
       )}

@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import type { User } from '@supabase/supabase-js'
+import { ROLE_LABELS } from '@/lib/supabase/types'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,11 +17,6 @@ import { Button } from '@/components/ui/button'
 import { LogOut, User as UserIcon, Bell } from 'lucide-react'
 import { toast } from 'sonner'
 
-const roleLabels: Record<string, string> = {
-  admin: 'Administrador', engenheiro: 'Engenheiro', supervisor: 'Supervisor',
-  tecnico: 'Técnico', compras: 'Compras', pre_vendas: 'Pré-Vendas',
-  gerente: 'Gerente', gestor: 'Gestor',
-}
 
 interface AppHeaderProps {
   user: User
@@ -59,7 +55,7 @@ export function AppHeader({ user, profile }: AppHeaderProps) {
               </Avatar>
               <div className="hidden md:block text-left">
                 <p className="text-sm font-medium text-foreground leading-tight">{profile?.full_name ?? 'Usuário'}</p>
-                <p className="text-xs text-muted-foreground">{profile?.role ? roleLabels[profile.role] : 'Sem perfil'}</p>
+                <p className="text-xs text-muted-foreground">{profile?.role ? (ROLE_LABELS[profile.role] ?? profile.role) : 'Sem perfil'}</p>
               </div>
             </button>
           </DropdownMenuTrigger>

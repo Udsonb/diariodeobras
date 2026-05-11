@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { buscarClima } from '@/lib/clima'
@@ -68,6 +68,13 @@ export function RdoForm({ obras, recursos, obraIdInicial }: RdoFormProps) {
   const [loadingClima, setLoadingClima] = useState(false)
 
   const obraSelecionada = obras.find(o => o.id === obraId)
+
+  useEffect(() => {
+    if (obraIdInicial) {
+      copiarDiaAnterior(obraIdInicial, new Date().toISOString().split('T')[0])
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function copiarDiaAnterior(obraIdParam: string, dataParam: string) {
     const dataAnterior = new Date(dataParam)
@@ -212,17 +219,18 @@ export function RdoForm({ obras, recursos, obraIdInicial }: RdoFormProps) {
 
       // 6. Upload de fotos
       if (fotos.length > 0) {
+        toast.info(`Enviando ${fotos.length} foto(s)...`)
         for (let i = 0; i < fotos.length; i++) {
           const foto = fotos[i]
-          const ext = foto.file.name.split('.').pop()
+          const ext = foto.file.name.split('.').pop() ?? 'jpg'
           const path = `${rdo.id}/${Date.now()}-${i}.${ext}`
 
           const { error: uploadError } = await supabase.storage
             .from('rdo-fotos')
-            .upload(path, foto.file, { cacheControl: '3600' })
+            .upload(path, foto.file, { cacheControl: '3600', contentType: foto.file.type })
 
           if (uploadError) {
-            toast.warning(`Erro no upload da foto ${i + 1}: ${uploadError.message}`)
+            toast.error(`Foto ${i + 1}: ${uploadError.message}`)
             continue
           }
 

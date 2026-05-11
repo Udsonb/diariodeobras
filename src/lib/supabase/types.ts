@@ -1,12 +1,34 @@
 export type UserRole =
   | 'admin'
+  | 'diretor'
   | 'engenheiro'
   | 'supervisor'
   | 'tecnico'
   | 'compras'
+  | 'financeiro'
+  | 'visualizador'
   | 'pre_vendas'
   | 'gerente'
   | 'gestor'
+
+export const ROLE_LABELS: Record<string, string> = {
+  admin: 'Administrador',
+  diretor: 'Diretor',
+  engenheiro: 'Engenheiro',
+  supervisor: 'Supervisor de Obra',
+  tecnico: 'Técnico / Operador',
+  compras: 'Compras',
+  financeiro: 'Financeiro',
+  visualizador: 'Visualizador',
+  pre_vendas: 'Pré-Vendas',
+  gerente: 'Gerente',
+  gestor: 'Gestor',
+}
+
+export const ROLES_PODE_CRIAR_RDO = ['admin', 'engenheiro', 'supervisor', 'tecnico']
+export const ROLES_PODE_APROVAR_RDO = ['admin', 'diretor', 'engenheiro']
+export const ROLES_ACESSO_CONFIGURACOES = ['admin']
+export const ROLES_PODE_CONVIDAR = ['admin']
 
 export type RdoStatus = 'rascunho' | 'enviado' | 'aprovado'
 export type RecursoTipo = 'efetivo' | 'maquinario' | 'ferramenta'
@@ -27,11 +49,44 @@ export interface Database {
           avatar_url: string | null
           role: UserRole
           active: boolean
+          empresa_id: string | null
           created_at: string
           updated_at: string
         }
         Insert: Omit<Database['public']['Tables']['profiles']['Row'], 'created_at' | 'updated_at'>
         Update: Partial<Database['public']['Tables']['profiles']['Insert']>
+      }
+      empresas: {
+        Row: {
+          id: string
+          nome: string
+          logo_url: string | null
+          cnpj: string | null
+          telefone: string | null
+          email_contato: string | null
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['empresas']['Row'], 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Database['public']['Tables']['empresas']['Insert']>
+      }
+      convites: {
+        Row: {
+          id: string
+          empresa_id: string
+          email: string | null
+          role: string
+          token: string
+          expires_at: string
+          created_by: string | null
+          status: 'pendente' | 'aceito' | 'expirado'
+          accepted_at: string | null
+          accepted_by: string | null
+          created_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['convites']['Row'], 'id' | 'created_at' | 'token'>
+        Update: Partial<Database['public']['Tables']['convites']['Insert']>
       }
       obras: {
         Row: {
